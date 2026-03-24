@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GENESIS — 文明創世シミュレータ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;600;800;900&family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070e;--surface:#0e0e1a;--border:#1a1a30;--accent1:#a855f7;--accent2:#ec4899;--accent3:#f97316;--accent4:#06b6d4;--text:#e2e2e8;--muted:#6b6b80;--glow1:rgba(168,85,247,.25);--glow2:rgba(236,72,153,.25)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh;width:100vw}
+canvas{position:fixed;top:0;left:0;z-index:0}
+
+/* INTRO */
+#intro{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;transition:opacity 1.5s}
+#intro.hide{opacity:0;pointer-events:none}
+#intro h1{font-size:clamp(2.5rem,6vw,5rem);font-weight:900;letter-spacing:.15em;background:linear-gradient(135deg,var(--accent1),var(--accent2),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;opacity:0;animation:fadeUp 2s .5s forwards}
+#intro .tagline{color:var(--muted);font-size:clamp(.9rem,2vw,1.2rem);margin-top:1rem;opacity:0;animation:fadeUp 2s 1.5s forwards;font-weight:300;letter-spacing:.3em}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* SETUP */
+#setup{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(7,7,14,.92);backdrop-filter:blur(40px)}
+#setup.show{display:flex}
+.setup-card{width:min(580px,92vw);max-height:90vh;overflow-y:auto}
+.setup-card h2{font-size:2rem;font-weight:900;margin-bottom:.3rem;background:linear-gradient(135deg,var(--accent1),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.setup-card .desc{color:var(--muted);margin-bottom:2.5rem;font-size:.9rem}
+.step{display:none;animation:fadeUp .5s}.step.active{display:block}
+.step-indicator{display:flex;gap:.5rem;margin-bottom:2rem}
+.step-dot{width:40px;height:4px;border-radius:2px;background:var(--border);transition:.3s}
+.step-dot.done{background:var(--accent1)}.step-dot.current{background:var(--accent2)}
+.input-group{margin-bottom:1.5rem}
+.input-group label{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.2em;color:var(--accent1);margin-bottom:.5rem;font-weight:600}
+.input-group input,.input-group textarea,.input-group select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.85rem 1.1rem;color:#fff;font-size:.95rem;font-family:inherit;outline:none;transition:.3s}
+.input-group input:focus,.input-group textarea:focus,.input-group select:focus{border-color:var(--accent1);box-shadow:0 0 20px var(--glow1)}
+.input-group textarea{height:80px;resize:none}
+.trait-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.5rem}
+.trait-btn{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.7rem;text-align:center;cursor:pointer;transition:.3s;font-size:.8rem}
+.trait-btn:hover{border-color:var(--accent1);transform:translateY(-2px)}
+.trait-btn.selected{border-color:var(--accent2);background:rgba(236,72,153,.1);box-shadow:0 0 20px var(--glow2)}
+.trait-btn .emoji{font-size:1.3rem;display:block;margin-bottom:.3rem}
+.goal-chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}
+.goal-chip{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:.4rem 1rem;font-size:.8rem;cursor:pointer;transition:.3s;color:var(--muted)}
+.goal-chip:hover{border-color:var(--accent3);color:var(--accent3)}
+.goal-chip.selected{border-color:var(--accent3);color:var(--accent3);background:rgba(249,115,22,.1)}
+.pair-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.btn{padding:.9rem 2rem;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;letter-spacing:.05em;transition:.3s;font-family:inherit}
+.btn-primary{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff}
+.btn-primary:hover{transform:scale(1.03);box-shadow:0 0 40px var(--glow2)}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-ghost:hover{border-color:var(--accent1);color:var(--text)}
+.btn-row{display:flex;gap:1rem;justify-content:flex-end;margin-top:2rem}
+
+/* HUD */
+#hud{position:fixed;inset:0;z-index:10;pointer-events:none;display:none;opacity:0;transition:opacity 1s}
+#hud.show{display:block;opacity:1}
+#hud>*{pointer-events:auto}
+.hud-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:1.2rem 1.5rem}
+.hud-era{font-size:.65rem;text-transform:uppercase;letter-spacing:.3em;color:var(--accent1);font-weight:600}
+.hud-year{font-size:2.2rem;font-weight:900;line-height:1;margin-top:.2rem;background:linear-gradient(135deg,#fff,#aaa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hud-pop{font-size:.85rem;color:var(--muted);margin-top:.3rem}
+.hud-pop b{color:var(--accent3);font-weight:800}
+.hud-controls{display:flex;gap:.4rem;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.3rem}
+.ctrl-btn{background:none;border:none;color:var(--muted);padding:.4rem .7rem;border-radius:7px;cursor:pointer;font-size:.8rem;font-family:inherit;transition:.2s}
+.ctrl-btn:hover{color:#fff}.ctrl-btn.active{background:var(--accent1);color:#fff}
+
+/* Side panel */
+.hud-side{position:absolute;top:80px;right:1.5rem;width:280px;max-height:calc(100vh - 100px);overflow-y:auto}
+.panel{background:rgba(14,14,26,.85);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:14px;padding:1.1rem;margin-bottom:.8rem}
+.panel-title{font-size:.65rem;text-transform:uppercase;letter-spacing:.2em;color:var(--muted);margin-bottom:.8rem;font-weight:600}
+.founder-row{display:flex;gap:.7rem;margin-bottom:.5rem;align-items:center}
+.founder-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+.founder-info .fname{font-size:.85rem;font-weight:700}
+.founder-info .ftrait{font-size:.7rem;color:var(--muted)}
+.goal-text{font-size:.85rem;color:var(--accent3);line-height:1.5}
+.progress-track{height:3px;background:var(--border);border-radius:2px;margin-top:.8rem;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent1),var(--accent2));transition:width .8s}
+.stat-item{display:flex;justify-content:space-between;padding:.35rem 0;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,.03)}
+.stat-item:last-child{border:none}
+.stat-label{color:var(--muted)}.stat-val{font-weight:700}
+.tech-tags{display:flex;flex-wrap:wrap;gap:.3rem}
+.tech-tag{font-size:.65rem;padding:.15rem .5rem;border-radius:8px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2);color:var(--accent1)}
+
+/* Settlement ranking panel */
+.settle-rank{max-height:250px;overflow-y:auto}
+.settle-item{display:flex;align-items:center;gap:.6rem;padding:.45rem 0;border-bottom:1px solid rgba(255,255,255,.03);animation:settleIn .4s both}
+@keyframes settleIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.settle-rank-num{font-size:.7rem;color:var(--muted);width:18px;text-align:right;flex-shrink:0}
+.settle-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.settle-info{flex:1;min-width:0}
+.settle-name{font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.settle-pop{font-size:.7rem;color:var(--muted)}
+.settle-bar-wrap{width:60px;height:4px;background:var(--border);border-radius:2px;flex-shrink:0;overflow:hidden}
+.settle-bar{height:100%;border-radius:2px;transition:width .6s ease-out}
+
+/* Log */
+.hud-log{position:absolute;bottom:0;left:0;right:300px;max-height:200px;overflow-y:auto;padding:1rem 1.5rem;background:linear-gradient(transparent,rgba(7,7,14,.95) 30%)}
+.log-item{display:flex;gap:.8rem;padding:.4rem 0;animation:logIn .6s}
+@keyframes logIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.log-year{font-size:.75rem;color:var(--accent1);font-weight:700;white-space:nowrap;min-width:80px}
+.log-text{font-size:.8rem;color:var(--text);line-height:1.4}
+.log-text.major{color:var(--accent3);font-weight:600}
+
+/* Cinematic */
+#cinematic{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(7,7,14,.9);backdrop-filter:blur(30px)}
+#cinematic.show{display:flex}
+#cinematic h2{font-size:clamp(1.8rem,4vw,3.5rem);font-weight:900;text-align:center;background:linear-gradient(135deg,var(--accent1),var(--accent2),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:cinIn 1s forwards}
+#cinematic p{color:var(--muted);margin-top:1rem;font-size:1.1rem;animation:cinIn 1s .3s forwards;opacity:0}
+@keyframes cinIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+
+/* Story */
+.story-panel{position:absolute;bottom:210px;left:1.5rem;width:300px}
+.story-card{background:rgba(14,14,26,.85);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:14px;padding:1rem;animation:logIn .6s}
+.story-card .story-title{font-size:.65rem;text-transform:uppercase;letter-spacing:.2em;color:var(--accent2);margin-bottom:.4rem;font-weight:600}
+.story-card .story-text{font-size:.8rem;line-height:1.6;color:var(--text)}
+.story-card .story-gen{font-size:.7rem;color:var(--muted);margin-top:.4rem}
+
+/* Population popup on canvas */
+.pop-label{position:absolute;pointer-events:none;font-size:.7rem;font-weight:700;color:#fff;text-shadow:0 0 8px rgba(0,0,0,.8);white-space:nowrap;transition:opacity .3s;z-index:5}
+
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<canvas id="world"></canvas>
+<div id="popLabels" style="position:fixed;inset:0;z-index:5;pointer-events:none"></div>
+
+<div id="intro"><h1>GENESIS</h1><p class="tagline">あなたの文明を、ゼロから創れ</p></div>
+
+<div id="setup">
+  <div class="setup-card">
+    <div class="step-indicator" id="stepDots"></div>
+    <div class="step active" data-step="0">
+      <h2>文明の鍵</h2>
+      <p class="desc">Claude APIキーを入力せよ。これが文明のAIエンジンとなる。</p>
+      <div class="input-group"><label>Anthropic API Key</label><input id="apiKey" type="password" placeholder="sk-ant-..."></div>
+      <div id="apiStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:1rem"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="initAPI()">接続</button></div>
+    </div>
+    <div class="step" data-step="1">
+      <h2>あなたは誰か</h2>
+      <p class="desc">この文明の創造主として、まず自分自身を定義せよ</p>
+      <div class="input-group"><label>あなたの名前</label><input id="userName" type="text" placeholder="名前を入力"></div>
+      <div class="input-group"><label>あなたが信じるもの</label>
+        <div class="trait-grid" id="creatorTraits">
+          <div class="trait-btn" data-val="創造"><span class="emoji">🔥</span>創造の力</div>
+          <div class="trait-btn" data-val="調和"><span class="emoji">🌊</span>調和の美</div>
+          <div class="trait-btn" data-val="知性"><span class="emoji">⚡</span>知性の光</div>
+          <div class="trait-btn" data-val="自由"><span class="emoji">🌪️</span>自由の風</div>
+          <div class="trait-btn" data-val="愛"><span class="emoji">💎</span>愛の結晶</div>
+          <div class="trait-btn" data-val="進化"><span class="emoji">🌱</span>進化の種</div>
+        </div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="nextStep()">次へ</button></div>
+    </div>
+    <div class="step" data-step="2">
+      <h2>始祖を選べ</h2>
+      <p class="desc">すべての始まりとなる二人を定義せよ</p>
+      <div class="pair-row">
+        <div>
+          <div class="input-group"><label>始祖 α</label><input id="adam" type="text" placeholder="名前" value="タケル"></div>
+          <div class="input-group"><label>気質</label><select id="adamT"><option>勇猛</option><option>聡明</option><option>慈愛</option><option>狡猾</option><option>夢想</option></select></div>
+        </div>
+        <div>
+          <div class="input-group"><label>始祖 β</label><input id="eve" type="text" placeholder="名前" value="ヒカリ"></div>
+          <div class="input-group"><label>気質</label><select id="eveT"><option>聡明</option><option>勇猛</option><option>慈愛</option><option>狡猾</option><option>夢想</option></select></div>
+        </div>
+      </div>
+      <div class="btn-row"><button class="btn btn-ghost" onclick="prevStep()">戻る</button><button class="btn btn-primary" onclick="nextStep()">次へ</button></div>
+    </div>
+    <div class="step" data-step="3">
+      <h2>文明の方向性</h2>
+      <p class="desc">この文明はどこへ向かうのか。人類の歴史をなぞる必要はない。</p>
+      <div class="goal-chips" id="goalChips">
+        <div class="goal-chip" data-v="争いなき永遠の平和">永久平和</div>
+        <div class="goal-chip" data-v="全意識の統合と超越">意識の超越</div>
+        <div class="goal-chip" data-v="自然と完全に融合した文明">自然融合</div>
+        <div class="goal-chip" data-v="宇宙の果てへの到達">宇宙進出</div>
+        <div class="goal-chip" data-v="美と芸術で世界を塗り替える">芸術至上</div>
+        <div class="goal-chip" data-v="あらゆる生命の共存と進化">共生進化</div>
+        <div class="goal-chip" data-v="時間と空間の支配">時空支配</div>
+        <div class="goal-chip" data-v="感情を超えた純粋な論理世界">純粋論理</div>
+      </div>
+      <div class="input-group"><label>または自由に記述</label><textarea id="goalText" placeholder="あなただけの文明の目標を書け"></textarea></div>
+      <div class="btn-row"><button class="btn btn-ghost" onclick="prevStep()">戻る</button><button class="btn btn-primary" onclick="beginGenesis()">創 世 開 始</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="cinematic"><h2 id="cinText"></h2><p id="cinSub"></p></div>
+
+<div id="hud">
+  <div class="hud-top">
+    <div><div class="hud-era" id="hudEra">—</div><div class="hud-year" id="hudYear">—</div><div class="hud-pop" id="hudPop"></div></div>
+    <div class="hud-controls">
+      <button class="ctrl-btn" onclick="setSpd(0)" id="spP">⏸</button>
+      <button class="ctrl-btn active" onclick="setSpd(1)" id="sp1">1×</button>
+      <button class="ctrl-btn" onclick="setSpd(4)" id="sp4">4×</button>
+      <button class="ctrl-btn" onclick="setSpd(16)" id="sp16">16×</button>
+    </div>
+  </div>
+  <div class="hud-side" id="hudSide">
+    <div class="panel" id="panelFounders"></div>
+    <div class="panel"><div class="panel-title">目標</div><div class="goal-text" id="panelGoal"></div><div class="progress-track"><div class="progress-fill" id="progFill" style="width:0%"></div></div></div>
+    <div class="panel"><div class="panel-title">地域別人口</div><div class="settle-rank" id="panelSettle"></div></div>
+    <div class="panel"><div class="panel-title">統計</div><div id="panelStats"></div></div>
+    <div class="panel"><div class="panel-title">発見・技術</div><div class="tech-tags" id="panelTech"></div></div>
+  </div>
+  <div class="story-panel" id="storyPanel"></div>
+  <div class="hud-log" id="hudLog"></div>
+</div>
+
+<script>
+// ===== CANVAS =====
+const C=document.getElementById('world'),X=C.getContext('2d');
+let W,H;
+function resize(){W=C.width=innerWidth;H=C.height=innerHeight}
+resize();addEventListener('resize',()=>{resize();if(S)genTerrain()});
+
+// ===== NOISE =====
+const perm=new Uint8Array(512);
+{const p=[];for(let i=0;i<256;i++)p[i]=i;for(let i=255;i>0;i--){const j=Math.random()*i|0;[p[i],p[j]]=[p[j],p[i]]}for(let i=0;i<512;i++)perm[i]=p[i&255]}
+function fade(t){return t*t*t*(t*(t*6-15)+10)}
+function lerp(a,b,t){return a+t*(b-a)}
+function grad2(h,x,y){const v=h&3;return(v===0?x+y:v===1?-x+y:v===2?x-y:-x-y)}
+function noise2d(x,y){const X0=Math.floor(x)&255,Y0=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=fade(x),v=fade(y),a=perm[X0]+Y0,b=perm[X0+1]+Y0;return lerp(lerp(grad2(perm[a],x,y),grad2(perm[b],x-1,y),u),lerp(grad2(perm[a+1],x,y-1),grad2(perm[b+1],x-1,y-1),u),v)}
+function fbm(x,y,o=5){let v=0,a=.5,f=1;for(let i=0;i<o;i++){v+=a*noise2d(x*f,y*f);a*=.5;f*=2}return v}
+
+// ===== TERRAIN =====
+let terrain=[],terrainOx,terrainOy;
+function genTerrain(){
+  terrain=[];terrainOx=terrainOx||Math.random()*1000;terrainOy=terrainOy||Math.random()*1000;
+  for(let y=0;y<H;y+=4)for(let x=0;x<W;x+=4)terrain.push({x,y,h:fbm((x+terrainOx)*.003,(y+terrainOy)*.003,6)});
+}
+function drawTerrain(){
+  for(const t of terrain){
+    const h=t.h;let r,g,b;
+    if(h<-.15){r=12;g=16;b=35}else if(h<-.05){r=16;g=25;b=45}else if(h<.05){r=22;g=40;b=28}else if(h<.2){r=18;g=45;b=22}else if(h<.35){r=28;g=50;b=18}else{r=42;g=38;b=32}
+    X.fillStyle=`rgb(${r},${g},${b})`;X.fillRect(t.x,t.y,4,4);
+  }
+}
+function isLand(x,y){const h=fbm((x+terrainOx)*.003,(y+terrainOy)*.003,6);return h>=-.05}
+function nearestLand(cx,cy){let bx=cx,by=cy,bd=Infinity;for(const t of terrain){if(t.h>=0){const d=(t.x-cx)**2+(t.y-cy)**2;if(d<bd){bd=d;bx=t.x;by=t.y}}}return{x:bx,y:by}}
+
+// ===== SIMULATION =====
+let entities=[],settlements=[],connections=[],S=null,spd=1;
+const COLORS=['#a855f7','#ec4899','#f97316','#06b6d4','#22c55e','#eab308','#ef4444','#8b5cf6','#14b8a6','#f43f5e','#84cc16','#6366f1'];
+
+const ERAS=[
+  {n:'虚無の時代',y:-100000,c:'#444'},{n:'覚醒の時代',y:-50000,c:'#4a9'},
+  {n:'火と石の時代',y:-20000,c:'#a85'},{n:'言葉の時代',y:-8000,c:'#a65'},
+  {n:'土と種の時代',y:-4000,c:'#6a5'},{n:'集いの時代',y:-2000,c:'#5a8'},
+  {n:'秩序の時代',y:-500,c:'#85a'},{n:'知の爆発',y:200,c:'#a5c'},
+  {n:'鉄と血の時代',y:800,c:'#c55'},{n:'目覚めの時代',y:1400,c:'#ca5'},
+  {n:'機械の時代',y:1750,c:'#5ac'},{n:'光の時代',y:1950,c:'#a855f7'},
+  {n:'超越の時代',y:2050,c:'#ec4899'},{n:'星の時代',y:2200,c:'#f97316'},
+];
+const DISC={
+  '虚無の時代':[],'覚醒の時代':['意識','共感','恐怖の克服'],
+  '火と石の時代':['火','石器','洞窟画','骨の道具'],'言葉の時代':['言語','歌','物語','踊り','記号'],
+  '土と種の時代':['農耕','土器','家畜化','織物','発酵'],'集いの時代':['村','交易','祭祀','長老制','地図'],
+  '秩序の時代':['文字','法','通貨','暦','建築'],'知の爆発':['哲学','数学','天文学','医術','冶金'],
+  '鉄と血の時代':['製鉄','城壁','火薬','印刷','羅針盤'],'目覚めの時代':['科学的方法','望遠鏡','解剖学','活版印刷','銀行'],
+  '機械の時代':['蒸気機関','電気','鉄道','写真','電信'],'光の時代':['コンピュータ','インターネット','遺伝子解析','AI','量子理論'],
+  '超越の時代':['意識転送','反重力','テラフォーミング','統一場理論','不老'],'星の時代':['恒星間航行','次元操作','宇宙意識','時間制御','万物創造'],
+};
+
+const SNAMES=['希望の丘','静かなる湖','風の谷','光の岬','星降る原','深き森','白き峰','黄金の里','碧の港','紅の砦','翡翠の泉','雷鳴の崖','暁の都','月影の郷','虹の架橋','鋼の街','夢見の浜','蒼穹の塔','花咲く野','氷の宮'];
+
+function getEra(y){let e=ERAS[0];for(const era of ERAS)if(y>=era.y)e=era;return e}
+function fmtYear(y){return y<0?`紀元前 ${Math.abs(Math.round(y)).toLocaleString()}年`:`紀元 ${Math.round(y).toLocaleString()}年`}
+function fmtPop(p){return p>=1e9?(p/1e9).toFixed(1)+'億':p>=1e6?(p/1e6).toFixed(1)+'百万':p>=1e4?Math.round(p/1e4)+'万':p.toLocaleString()}
+
+function addSettlement(x,y,name){
+  const id=settlements.length;
+  const s={x,y,name,pop:0,size:2,id,color:COLORS[id%COLORS.length],displayPop:0,animDelay:id*.12};
+  settlements.push(s);
+  return s;
+}
+
+function spawnEntity(sx,sy,gen){
+  const nm=['ハルト','レン','ソウタ','カイト','シン','リク','ダイチ','サクラ','アオイ','ミツキ','ユイ','リン','ハナ','ミオ'];
+  entities.push({x:sx,y:sy,tx:sx,ty:sy,vx:0,vy:0,name:nm[Math.random()*nm.length|0],gen,color:COLORS[gen%COLORS.length],size:2.5,age:0,maxAge:250+Math.random()*350});
+}
+
+// ===== SETUP UI =====
+let currentStep=0;const totalSteps=4;let creatorTrait='';let aiEnabled=false;
+function renderDots(){const d=document.getElementById('stepDots');d.innerHTML='';for(let i=0;i<totalSteps;i++){const dot=document.createElement('div');dot.className='step-dot'+(i<currentStep?' done':i===currentStep?' current':'');d.appendChild(dot)}}
+function showStep(n){document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));document.querySelector(`.step[data-step="${n}"]`).classList.add('active');currentStep=n;renderDots()}
+function nextStep(){showStep(currentStep+1)}
+function prevStep(){showStep(currentStep-1)}
+
+// API init
+async function initAPI(){
+  const key=document.getElementById('apiKey').value.trim();
+  const st=document.getElementById('apiStatus');
+  if(!key){st.textContent='APIキーを入力してください';st.style.color='#ef4444';return}
+  st.textContent='接続中...';st.style.color='var(--accent1)';
+  try{
+    const r=await fetch('/api/init',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:key})});
+    const d=await r.json();
+    if(d.ok){st.textContent='接続成功。AIエンジン起動。';st.style.color='#22c55e';aiEnabled=true;setTimeout(()=>nextStep(),800)}
+    else{st.textContent='エラー: '+d.error;st.style.color='#ef4444'}
+  }catch(e){st.textContent='サーバーに接続できません。node server.js を起動してください。';st.style.color='#ef4444'}
+}
+
+document.getElementById('creatorTraits').addEventListener('click',e=>{const b=e.target.closest('.trait-btn');if(!b)return;document.querySelectorAll('#creatorTraits .trait-btn').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');creatorTrait=b.dataset.val});
+document.getElementById('goalChips').addEventListener('click',e=>{const c=e.target.closest('.goal-chip');if(!c)return;document.querySelectorAll('.goal-chip').forEach(x=>x.classList.remove('selected'));c.classList.add('selected');document.getElementById('goalText').value=c.dataset.v});
+
+setTimeout(()=>{document.getElementById('intro').classList.add('hide');setTimeout(()=>{document.getElementById('intro').style.display='none';document.getElementById('setup').classList.add('show');renderDots()},1500)},3500);
+
+// ===== BEGIN =====
+function beginGenesis(){
+  const userName=document.getElementById('userName').value||'創造主';
+  const adam=document.getElementById('adam').value||'α';
+  const eve=document.getElementById('eve').value||'β';
+  const adamT=document.getElementById('adamT').value;
+  const eveT=document.getElementById('eveT').value;
+  const goal=document.getElementById('goalText').value||'未知への到達';
+  document.getElementById('setup').classList.remove('show');
+
+  S={userName,adam,eve,adamT,eveT,goal,creatorTrait:creatorTrait||'創造',
+    year:-100000,pop:2,era:ERAS[0],techs:[],logs:[],
+    progress:0,generation:0,births:0,deaths:0,discoveries:0,tickCount:0};
+
+  genTerrain();
+  const land=nearestLand(W/2,H/2);
+  const s0=addSettlement(land.x,land.y,'始まりの地');
+  s0.pop=2;s0.displayPop=2;
+  entities=[
+    {x:land.x-8,y:land.y,tx:land.x,ty:land.y,vx:0,vy:0,name:adam,gen:0,color:'#a855f7',size:5,age:0,maxAge:99999},
+    {x:land.x+8,y:land.y,tx:land.x,ty:land.y,vx:0,vy:0,name:eve,gen:0,color:'#ec4899',size:5,age:0,maxAge:99999}
+  ];
+
+  document.getElementById('panelFounders').innerHTML=`<div class="panel-title">始祖</div>
+    <div class="founder-row"><div class="founder-avatar" style="background:rgba(168,85,247,.2);border:2px solid #a855f7">♂</div><div class="founder-info"><div class="fname">${adam}</div><div class="ftrait">${adamT}</div></div></div>
+    <div class="founder-row"><div class="founder-avatar" style="background:rgba(72,153,236,.2);border:2px solid #ec4899">♀</div><div class="founder-info"><div class="fname">${eve}</div><div class="ftrait">${eveT}</div></div></div>`;
+  document.getElementById('panelGoal').textContent=goal;
+
+  showCinematic(`${adam}と${eve}`,`文明の種が蒔かれた`,()=>{
+    document.getElementById('hud').classList.add('show');
+    log(S.year,`${adam}と${eve}が出会った。すべてはここから始まる。`,true);
+    log(S.year,`創造主 ${userName} が文明に方向を与えた:「${goal}」`,true);
+    requestAnimationFrame(frame);
+    setInterval(simTick,80);
+  });
+}
+
+function showCinematic(t,s,cb){
+  const el=document.getElementById('cinematic');
+  document.getElementById('cinText').textContent=t;
+  document.getElementById('cinSub').textContent=s;
+  el.classList.add('show');
+  setTimeout(()=>{el.classList.remove('show');if(cb)cb()},3000);
+}
+
+// ===== SIM TICK =====
+function simTick(){
+  if(!S||spd===0)return;
+  for(let i=0;i<spd;i++)doTick();
+  updateHUD();
+  updateSettleRank();
+  updatePopLabels();
+}
+
+function doTick(){
+  S.tickCount++;
+  const eIdx=ERAS.indexOf(S.era);
+  const advance=eIdx<=2?Math.random()*800+200:eIdx<=5?Math.random()*150+50:eIdx<=8?Math.random()*40+10:Math.random()*8+2;
+  S.year+=advance;
+
+  // === POPULATION: always +1 minimum, exponential after ===
+  const rate=.01+eIdx*.005;
+  const growth=Math.max(1,Math.round(S.pop*rate*(1+Math.random())));
+  S.pop+=growth;
+  if(S.pop>15e9)S.pop=15e9;
+
+  // Distribute population to settlements
+  distributePopulation();
+
+  // Spawn visual agents
+  if(entities.length<250&&Math.random()<.4&&settlements.length>0){
+    const ps=settlements[Math.random()*settlements.length|0];
+    S.generation=Math.max(S.generation,Math.floor((S.year+100000)/8000));
+    spawnEntity(ps.x+(Math.random()-.5)*50,ps.y+(Math.random()-.5)*50,S.generation);
+    S.births++;
+  }
+
+  // Age & cull
+  for(let i=entities.length-1;i>=0;i--){
+    entities[i].age++;
+    if(entities[i].age>entities[i].maxAge&&entities[i].gen>0){entities.splice(i,1);S.deaths++}
+  }
+
+  // Move
+  for(const e of entities){
+    if(Math.random()<.04&&settlements.length>0){
+      const t=settlements[Math.random()*settlements.length|0];
+      e.tx=t.x+(Math.random()-.5)*60;e.ty=t.y+(Math.random()-.5)*60;
+    }
+    e.vx+=(e.tx-e.x)*.008;e.vy+=(e.ty-e.y)*.008;
+    e.vx*=.94;e.vy*=.94;
+    e.x+=e.vx;e.y+=e.vy;
+  }
+
+  // New settlements
+  if(S.pop>settlements.length*1500+50&&Math.random()<.12&&settlements.length<40){
+    const px=settlements[Math.random()*settlements.length|0];
+    const nx=px.x+(Math.random()-.5)*W*.3;
+    const ny=px.y+(Math.random()-.5)*H*.3;
+    const land=nearestLand(Math.max(20,Math.min(W-20,nx)),Math.max(20,Math.min(H-20,ny)));
+    const nm=SNAMES[settlements.length%SNAMES.length];
+    const ns=addSettlement(land.x,land.y,nm);
+    log(S.year,`新たな集落「${nm}」が誕生した`);
+  }
+
+  // Settlement visual growth
+  for(const s of settlements)s.size=Math.min(35,2+Math.log2(Math.max(1,s.pop))*1.5);
+
+  // Connections
+  connections=[];
+  for(let i=0;i<settlements.length;i++)for(let j=i+1;j<settlements.length;j++){
+    const d=Math.hypot(settlements[i].x-settlements[j].x,settlements[i].y-settlements[j].y);
+    if(d<W*.25)connections.push([settlements[i],settlements[j],d]);
+  }
+
+  // Era
+  const ne=getEra(S.year);
+  if(ne.n!==S.era.n){
+    S.era=ne;
+    if(aiEnabled)aiEpoch(ne.n);
+    else{showCinematic(ne.n,'新たな時代の幕開け',null);log(S.year,`【${ne.n}】が始まった`,true)}
+  }
+
+  // Discoveries (local fallback)
+  const disc=DISC[S.era.n]||[];
+  for(const d of disc)if(!S.techs.includes(d)&&Math.random()<.05){S.techs.push(d);S.discoveries++;log(S.year,`【発見】${d}`)}
+
+  // AI-powered events (every ~30 ticks, throttled)
+  if(aiEnabled&&S.tickCount%30===0&&!aiGenerating)aiGenerate();
+  // Local fallback events
+  if(!aiEnabled&&Math.random()<.06)genEvent();
+  if(Math.random()<.015)genStory();
+
+  S.progress=Math.min(100,((S.year+100000)/102200)*100);
+}
+
+// === Distribute pop across settlements proportional to age/size ===
+function distributePopulation(){
+  if(settlements.length===0)return;
+  let totalWeight=0;
+  for(const s of settlements)totalWeight+=s.size;
+  let assigned=0;
+  for(let i=0;i<settlements.length;i++){
+    if(i===settlements.length-1){
+      settlements[i].pop=S.pop-assigned;
+    }else{
+      const w=settlements[i].size/totalWeight;
+      settlements[i].pop=Math.round(S.pop*w);
+      assigned+=settlements[i].pop;
+    }
+  }
+  // Smooth display pop (animated counting)
+  for(const s of settlements){
+    const diff=s.pop-s.displayPop;
+    s.displayPop+=Math.ceil(diff*.15);
+  }
+}
+
+// === Settlement rank panel with テテテテテン animation ===
+let lastRankHTML='';
+function updateSettleRank(){
+  const sorted=[...settlements].sort((a,b)=>b.pop-a.pop).slice(0,12);
+  const maxPop=sorted.length?sorted[0].pop:1;
+  let html='';
+  sorted.forEach((s,i)=>{
+    const pct=Math.round((s.pop/Math.max(1,maxPop))*100);
+    const delay=i*.08;
+    html+=`<div class="settle-item" style="animation-delay:${delay}s">
+      <span class="settle-rank-num">${i+1}</span>
+      <span class="settle-dot" style="background:${s.color}"></span>
+      <div class="settle-info"><div class="settle-name">${s.name}</div><div class="settle-pop">${fmtPop(s.displayPop)}人</div></div>
+      <div class="settle-bar-wrap"><div class="settle-bar" style="width:${pct}%;background:${s.color}"></div></div>
+    </div>`;
+  });
+  document.getElementById('panelSettle').innerHTML=html;
+}
+
+// === Pop labels on canvas ===
+function updatePopLabels(){
+  const container=document.getElementById('popLabels');
+  // Re-render every 5 ticks for perf
+  if(S.tickCount%3!==0)return;
+  let html='';
+  for(const s of settlements){
+    if(s.displayPop<5)continue;
+    html+=`<div class="pop-label" style="left:${s.x-30}px;top:${s.y-s.size*4-16}px;color:${s.color}">${s.name} ${fmtPop(s.displayPop)}</div>`;
+  }
+  container.innerHTML=html;
+}
+
+// ===== AI GENERATION =====
+let aiGenerating=false;
+async function aiGenerate(){
+  aiGenerating=true;
+  try{
+    const state={year:fmtYear(S.year),era:S.era.n,pop:fmtPop(S.pop),
+      adam:S.adam,adamT:S.adamT,eve:S.eve,eveT:S.eveT,
+      goal:S.goal,creatorTrait:S.creatorTrait,
+      techs:S.techs,settlements:settlements.map(s=>s.name),generation:S.generation};
+    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state})});
+    const d=await r.json();
+    if(d.error){console.warn('AI error:',d.error);aiGenerating=false;return}
+    if(d.events)for(const ev of d.events){
+      const major=ev.impact==='positive';
+      log(S.year,`${ev.title ? '【'+ev.title+'】':''}${ev.text}`,major);
+    }
+    if(d.newDiscovery&&!S.techs.includes(d.newDiscovery)){
+      S.techs.push(d.newDiscovery);S.discoveries++;
+      log(S.year,`【AI発見】${d.newDiscovery}`,true);
+    }
+    if(d.storyFragment){
+      document.getElementById('storyPanel').innerHTML=`<div class="story-card"><div class="story-title">AIが紡ぐ物語</div><div class="story-text">${d.storyFragment}</div><div class="story-gen">${fmtYear(S.year)} — ${S.era.n}</div></div>`;
+    }
+  }catch(e){console.warn('AI fetch error:',e)}
+  aiGenerating=false;
+}
+
+async function aiEpoch(eraName){
+  try{
+    const state={adam:S.adam,eve:S.eve,goal:S.goal,pop:fmtPop(S.pop),techs:S.techs};
+    const r=await fetch('/api/epoch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state,newEra:eraName})});
+    const d=await r.json();
+    showCinematic(d.title||eraName,d.subtitle||'新たな時代',null);
+    log(S.year,`【${eraName}】${d.description||'が始まった'}`,true);
+  }catch(e){
+    showCinematic(eraName,'新たな時代の幕開け',null);
+    log(S.year,`【${eraName}】が始まった`,true);
+  }
+}
+
+const EVT=[
+  ()=>`${S.adam}の血統から新たな指導者が現れた`,
+  ()=>`${S.eve}の知恵が第${S.generation}世代に受け継がれた`,
+  ()=>`人口${fmtPop(S.pop)}を超え、社会構造が変化した`,
+  ()=>`「${S.goal}」への集合意識が強まっている`,
+  ()=>`大きな災害が起きたが、民は結束して乗り越えた`,
+  ()=>`未知の領域への探検隊が出発した`,
+  ()=>`異なる集落間で文化の融合が起きた`,
+  ()=>`${S.creatorTrait}の精神が文明の核として根付いた`,
+  ()=>`新たな思想家が「${S.goal}」の本質を問い直した`,
+  ()=>`${S.adam}の意志を継ぐ者たちが新天地を拓いた`,
+];
+function genEvent(){log(S.year,EVT[Math.random()*EVT.length|0]())}
+
+const STORIES=[
+  ()=>({t:`第${S.generation}世代`,s:`${S.adam}と${S.eve}の子孫たちは「${S.goal}」を胸に日々を生きている。人口は${fmtPop(S.pop)}に達した。`}),
+  ()=>({t:`創造主の影響`,s:`あなたが信じた「${S.creatorTrait}」が今もこの文明の根底に流れている。`}),
+  ()=>({t:`ある集落にて`,s:`「${settlements.length?settlements[Math.random()*settlements.length|0].name:'始まりの地'}」で一人の子供が生まれた。この子が歴史を変えるかもしれない。`}),
+];
+function genStory(){
+  const st=STORIES[Math.random()*STORIES.length|0]();
+  document.getElementById('storyPanel').innerHTML=`<div class="story-card"><div class="story-title">${st.t}</div><div class="story-text">${st.s}</div><div class="story-gen">${fmtYear(S.year)} — ${S.era.n}</div></div>`;
+}
+
+function log(year,text,major=false){
+  S.logs.unshift({year,text,major});
+  const el=document.createElement('div');
+  el.className='log-item';
+  el.innerHTML=`<span class="log-year">${fmtYear(year)}</span><span class="log-text${major?' major':''}">${text}</span>`;
+  const c=document.getElementById('hudLog');c.prepend(el);
+  if(c.children.length>50)c.removeChild(c.lastChild);
+}
+
+function updateHUD(){
+  document.getElementById('hudEra').textContent=S.era.n;
+  document.getElementById('hudEra').style.color=S.era.c;
+  document.getElementById('hudYear').textContent=fmtYear(S.year);
+  document.getElementById('hudPop').innerHTML=`人口 <b>${fmtPop(S.pop)}人</b> — 第${S.generation}世代`;
+  document.getElementById('progFill').style.width=S.progress+'%';
+  document.getElementById('panelStats').innerHTML=[
+    ['総人口',fmtPop(S.pop)+'人'],['集落数',settlements.length],['発見',S.techs.length],['世代',`第${S.generation}世代`],
+  ].map(([l,v])=>`<div class="stat-item"><span class="stat-label">${l}</span><span class="stat-val">${v}</span></div>`).join('');
+  document.getElementById('panelTech').innerHTML=S.techs.map(t=>`<span class="tech-tag">${t}</span>`).join('');
+}
+
+function setSpd(s){spd=s;document.querySelectorAll('.ctrl-btn').forEach(b=>b.classList.remove('active'));document.getElementById(s===0?'spP':s===1?'sp1':s===4?'sp4':'sp16').classList.add('active')}
+
+// ===== RENDER =====
+let fc=0;
+function frame(){
+  fc++;
+  X.fillStyle='rgba(7,7,14,0.1)';X.fillRect(0,0,W,H);
+  if(fc%100===1)drawTerrain();
+
+  // Connections
+  for(const[a,b,d]of connections){
+    const alpha=Math.min(.2,.03+settlements.length*.003);
+    X.strokeStyle=`rgba(168,85,247,${alpha})`;X.lineWidth=.8;
+    X.beginPath();X.moveTo(a.x,a.y);X.lineTo(b.x,b.y);X.stroke();
+  }
+
+  // Settlements
+  for(const s of settlements){
+    const r=s.size;
+    // Outer glow
+    const g1=X.createRadialGradient(s.x,s.y,0,s.x,s.y,r*5);
+    g1.addColorStop(0,s.color+'40');g1.addColorStop(1,s.color+'00');
+    X.fillStyle=g1;X.beginPath();X.arc(s.x,s.y,r*5,0,Math.PI*2);X.fill();
+    // Inner glow
+    const g2=X.createRadialGradient(s.x,s.y,0,s.x,s.y,r*2);
+    g2.addColorStop(0,s.color+'80');g2.addColorStop(1,s.color+'00');
+    X.fillStyle=g2;X.beginPath();X.arc(s.x,s.y,r*2,0,Math.PI*2);X.fill();
+    // Core
+    X.fillStyle='#fff';X.beginPath();X.arc(s.x,s.y,Math.max(2,r*.35),0,Math.PI*2);X.fill();
+    // Pulse ring
+    const pulse=(fc*2+s.id*50)%120;
+    if(pulse<60){
+      const pr=r*2+pulse*.5;
+      X.strokeStyle=s.color+(Math.round((1-pulse/60)*40)).toString(16).padStart(2,'0');
+      X.lineWidth=1;X.beginPath();X.arc(s.x,s.y,pr,0,Math.PI*2);X.stroke();
+    }
+  }
+
+  // Entities
+  for(const e of entities){
+    X.globalAlpha=Math.min(1,e.age/20);
+    X.fillStyle=e.color;X.beginPath();X.arc(e.x,e.y,e.size,0,Math.PI*2);X.fill();
+    X.fillStyle=e.color+'25';X.beginPath();X.arc(e.x-e.vx*4,e.y-e.vy*4,e.size*.5,0,Math.PI*2);X.fill();
+  }
+  X.globalAlpha=1;
+
+  // Ambient
+  if(S&&Math.random()<.6){
+    const ax=Math.random()*W,ay=Math.random()*H;
+    X.fillStyle=(S.era.c||'#a855f7')+'15';X.beginPath();X.arc(ax,ay,Math.random()*2+1,0,Math.PI*2);X.fill();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+X.fillStyle='#07070e';X.fillRect(0,0,W,H);
+</script>
+</body>
+</html>

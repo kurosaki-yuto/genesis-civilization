@@ -1,0 +1,1 @@
+{"name":"genesis-sim","version":"1.0.0","private":true,"type":"module","dependencies":{"@anthropic-ai/sdk":"^0.80.0","cors":"^2.8.6","express":"^5.2.1"}}
