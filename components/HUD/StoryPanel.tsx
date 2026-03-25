@@ -10,15 +10,15 @@ export default function StoryPanel({ story }: Props) {
   if (!story) return null;
 
   return (
-    <div className="absolute bottom-[210px] left-6 w-[300px]">
-      <div className="bg-[rgba(14,14,26,.85)] backdrop-blur-[20px] border border-[var(--border)] rounded-[14px] p-4 animate-[logIn_.6s]">
-        <div className="text-[10px] uppercase tracking-[.2em] text-[var(--accent2)] mb-1 font-semibold">
+    <div className="absolute bottom-[min(42vh,300px)] left-4 sm:left-6 right-4 sm:right-auto sm:w-[min(420px,calc(100vw-380px))] z-[11]">
+      <div className="panel border-2 border-[var(--border-strong)] animate-[logIn_.5s]">
+        <div className="text-xs font-bold tracking-[0.18em] text-[var(--accent2)] uppercase mb-2">
           {story.title}
         </div>
-        <div className="text-xs leading-relaxed text-[var(--text)]">
+        <div className="text-base sm:text-lg leading-relaxed text-[var(--text)] font-medium">
           {story.text}
         </div>
-        <div className="text-[11px] text-[var(--muted)] mt-1">
+        <div className="text-sm text-[var(--muted)] mt-3 font-medium">
           {fmtYear(story.year)} — {story.era}
         </div>
       </div>

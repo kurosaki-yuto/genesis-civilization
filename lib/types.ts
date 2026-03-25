@@ -85,4 +85,19 @@ export interface EpochResult {
   description: string;
 }
 
-export type Phase = "intro" | "setup" | "simulation";
+/** 管理者が保存する世界の定義 */
+export interface WorldConfig {
+  name: string;
+  goal: string;
+  creator: string;
+}
+
+/** ユーザー側の登録（地図上の「人」1体と対応） */
+export interface MapRegisteredUser {
+  id: string;
+  displayName: string;
+  motto?: string;
+  registeredAt: number;
+}
+
+export type Phase = "landing" | "admin_setup" | "user_register" | "world";

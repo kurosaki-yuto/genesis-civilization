@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import WorldCanvas, { type WorldCanvasHandle } from "./WorldCanvas";
+import WorldAtmosphere from "./WorldAtmosphere";
 import TopBar from "./HUD/TopBar";
 import SidePanel from "./HUD/SidePanel";
 import EventLog from "./HUD/EventLog";
@@ -11,7 +12,6 @@ import { fmtPop } from "@/lib/format";
 import {
   ERAS,
   createSettlement,
-  spawnEntity,
   doTick,
 } from "@/lib/simulation";
 import { fmtYear } from "@/lib/format";
@@ -20,7 +20,6 @@ import type {
   Entity,
   Settlement,
   LogEntry,
-  RegisteredUser,
 } from "@/lib/types";
 
 interface Props {
@@ -31,11 +30,10 @@ interface Props {
   eve: string;
   eveT: string;
   goal: string;
-  registeredUsers: RegisteredUser[];
 }
 
 export default function SimulationScreen({
-  userName, creatorTrait, adam, adamT, eve, eveT, goal, registeredUsers,
+  userName, creatorTrait, adam, adamT, eve, eveT, goal,
 }: Props) {
   const canvasRef = useRef<WorldCanvasHandle>(null);
   const [speed, setSpeed] = useState(1);
@@ -56,13 +54,11 @@ export default function SimulationScreen({
   const entitiesRef = useRef<Entity[]>([]);
   const settlementsRef = useRef<Settlement[]>([]);
   const aiGenerating = useRef(false);
-  const spawnedUserUids = useRef<Set<string>>(new Set());
 
   const addLog = useCallback((year: number, text: string, major = false) => {
     setLogs((prev) => [{ year, text, major }, ...prev].slice(0, 100));
   }, []);
 
-  // Initialize simulation
   useEffect(() => {
     const waitForCanvas = () => {
       const handle = canvasRef.current;
@@ -77,7 +73,7 @@ export default function SimulationScreen({
       }
 
       const land = handle.nearestLand(w / 2, h / 2);
-      const s0 = createSettlement([], land.x, land.y, "始まりの地");
+      const s0 = createSettlement([], land.x, land.y, "難波の芽坪");
       s0.pop = 2;
       s0.displayPop = 2;
 
@@ -85,12 +81,14 @@ export default function SimulationScreen({
         {
           x: land.x - 8, y: land.y, tx: land.x, ty: land.y,
           vx: 0, vy: 0, name: adam, gen: 0,
-          color: "#a855f7", size: 5, age: 0, maxAge: 99999,
+          color: "#38bdf8", size: 5, age: 0, maxAge: 99999,
+          isRegisteredUser: false,
         },
         {
           x: land.x + 8, y: land.y, tx: land.x, ty: land.y,
           vx: 0, vy: 0, name: eve, gen: 0,
-          color: "#ec4899", size: 5, age: 0, maxAge: 99999,
+          color: "#fbbf24", size: 5, age: 0, maxAge: 99999,
+          isRegisteredUser: false,
         },
       ];
 
@@ -110,7 +108,7 @@ export default function SimulationScreen({
       setEntities(initialEntities);
       setSettlements([s0]);
 
-      setCinematic({ title: `${adam}と${eve}`, subtitle: "文明の種が蒔かれた" });
+      setCinematic({ title: `${adam}と${eve}`, subtitle: "この星に、最初の火が灯った" });
     };
     requestAnimationFrame(waitForCanvas);
   }, [adam, adamT, eve, eveT, goal, userName, creatorTrait]);
@@ -127,30 +125,6 @@ export default function SimulationScreen({
     }
   }, [showHud, adam, eve, userName, goal, addLog]);
 
-  // Spawn registered users as entities
-  useEffect(() => {
-    if (!stateRef.current || settlementsRef.current.length === 0) return;
-    for (const user of registeredUsers) {
-      if (spawnedUserUids.current.has(user.uid)) continue;
-      spawnedUserUids.current.add(user.uid);
-      const s = settlementsRef.current[(Math.random() * settlementsRef.current.length) | 0];
-      const entity = spawnEntity(
-        s.x + (Math.random() - 0.5) * 40,
-        s.y + (Math.random() - 0.5) * 40,
-        stateRef.current.generation,
-        user.name,
-        true,
-        user.uid
-      );
-      entity.color = "#ec4899";
-      entitiesRef.current.push(entity);
-      setEntities([...entitiesRef.current]);
-      addLog(stateRef.current.year, `【住民登録】${user.name} がこの文明に加わった`, true);
-    }
-    // state: 初期化完了後に再実行（先に registeredUsers だけ届いた場合の取りこぼし防止）
-  }, [registeredUsers, addLog, state]);
-
-  // Simulation tick
   useEffect(() => {
     if (!state) return;
 
@@ -188,12 +162,10 @@ export default function SimulationScreen({
         }
       }
 
-      // AI events
       if (S.tickCount % 30 === 0 && !aiGenerating.current) {
         fetchAIEvents(S, setts);
       }
 
-      // Update connections
       const conns: [Settlement, Settlement, number][] = [];
       const { w } = handle.getSize();
       for (let i = 0; i < setts.length; i++) {
@@ -248,7 +220,7 @@ export default function SimulationScreen({
         });
       }
     } catch {
-      // AI unavailable, continue with local events
+      // AI unavailable
     }
     aiGenerating.current = false;
   };
@@ -283,25 +255,26 @@ export default function SimulationScreen({
         entities={entities}
         settlements={settlements}
         connections={connections}
-        eraColor={state?.era.c || "#a855f7"}
+        eraColor={state?.era.c || "#38bdf8"}
         running={!!state}
       />
+      <WorldAtmosphere />
 
-      {/* Population labels */}
       <div className="fixed inset-0 z-[5] pointer-events-none">
         {settlements.map((s) =>
           s.displayPop < 5 ? null : (
             <div
               key={s.id}
-              className="absolute text-[11px] font-bold text-white whitespace-nowrap"
+              className="absolute font-bold text-white whitespace-nowrap text-[13px] sm:text-[14px] tracking-tight"
               style={{
-                left: s.x - 30,
-                top: s.y - s.size * 4 - 16,
+                left: s.x - 40,
+                top: s.y - s.size * 4 - 20,
                 color: s.color,
-                textShadow: "0 0 8px rgba(0,0,0,.8)",
+                textShadow:
+                  "0 0 12px rgba(0,0,0,.95), 0 1px 2px rgba(0,0,0,.9), 0 2px 8px rgba(0,0,0,.8)",
               }}
             >
-              {s.name} {fmtPop(s.displayPop)}
+              {s.name} · {fmtPop(s.displayPop)}
             </div>
           )
         )}
@@ -319,11 +292,7 @@ export default function SimulationScreen({
         <div className="fixed inset-0 z-10 pointer-events-none animate-[fadeIn_1s]">
           <div className="pointer-events-auto">
             <TopBar state={state} speed={speed} onSpeedChange={setSpeed} />
-            <SidePanel
-              state={state}
-              settlements={settlements}
-              registeredUsers={registeredUsers}
-            />
+            <SidePanel state={state} settlements={settlements} />
             <StoryPanel story={story} />
             <EventLog logs={logs} />
           </div>

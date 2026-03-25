@@ -35,10 +35,11 @@ export const DISCOVERIES: Record<string, string[]> = {
 };
 
 export const SETTLEMENT_NAMES = [
-  "希望の丘", "静かなる湖", "風の谷", "光の岬", "星降る原",
-  "深き森", "白き峰", "黄金の里", "碧の港", "紅の砦",
-  "翡翠の泉", "雷鳴の崖", "暁の都", "月影の郷", "虹の架橋",
-  "鋼の街", "夢見の浜", "蒼穹の塔", "花咲く野", "氷の宮",
+  "難波の湊", "淀川ふち", "琵琶の西の浜", "鳥居前の里", "六甲のふもと",
+  "明石の潮みち", "奈良の盆底", "紀伊の水門", "淡路の風わたり", "京の盆底",
+  "姫路の平野", "大阪湾岸", "堺の通い舟", "神戸の湊", "伏見の水辺",
+  "和歌の浦", "伊丹の空の下", "生野の谷", "彦根の水脈", "天橋立の影",
+  "木津川口", "高野の参道",
 ];
 
 export const COLORS = [
@@ -48,8 +49,8 @@ export const COLORS = [
 ];
 
 const ENTITY_NAMES = [
-  "ハルト", "レン", "ソウタ", "カイト", "シン", "リク", "ダイチ",
-  "サクラ", "アオイ", "ミツキ", "ユイ", "リン", "ハナ", "ミオ",
+  "けんじ", "まさる", "りょうすけ", "しんじ", "たかし", "ひろし", "みつる",
+  "ゆみ", "けいこ", "なおみ", "あゆみ", "かな", "えみ", "みほ",
 ];
 
 export function getEra(y: number): Era {
@@ -249,6 +250,10 @@ const EVENT_TEMPLATES = [
   (S: SimState) => `${S.creatorTrait}の精神が文明の核として根付いた`,
   (S: SimState) => `新たな思想家が「${S.goal}」の本質を問い直した`,
   (S: SimState) => `${S.adam}の意志を継ぐ者たちが新天地を拓いた`,
+  (S: SimState) => `瀬戸内の潮流に乗り、塩と漁の交易が港を賑わせた`,
+  (S: SimState) => `夏、盆地にこもる湿気と夕立が、農作の間隔を変えた`,
+  (S: SimState) => `山裾の森から炭と材木が川を下り、河港の集落を支えた`,
+  (S: SimState) => `異なる訛りが港で交わり、祭と音楽の形が新しくなった`,
 ];
 
 function generateLocalEvent(S: SimState): string {
@@ -270,7 +275,7 @@ function generateStory(
     },
     {
       t: "ある集落にて",
-      s: `「${settlements.length ? settlements[(Math.random() * settlements.length) | 0].name : "始まりの地"}」で一人の子供が生まれた。この子が歴史を変えるかもしれない。`,
+      s: `「${settlements.length ? settlements[(Math.random() * settlements.length) | 0].name : "難波の芽坪"}」で一人の子供が生まれた。この子が歴史を変えるかもしれない。`,
     },
   ];
   return stories[(Math.random() * stories.length) | 0];
