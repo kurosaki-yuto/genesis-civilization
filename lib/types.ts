@@ -87,6 +87,7 @@ export interface EpochResult {
 
 /** 管理者が保存する世界の定義 */
 export interface WorldConfig {
+  id: string;
   name: string;
   goal: string;
   creator: string;

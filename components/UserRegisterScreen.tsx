@@ -5,12 +5,13 @@ import { appendRegisteredUser } from "@/lib/worldStorage";
 import type { MapRegisteredUser } from "@/lib/types";
 
 interface Props {
+  worldId: string;
   worldName: string;
   onRegistered: (user: MapRegisteredUser) => void;
   onBack: () => void;
 }
 
-export default function UserRegisterScreen({ worldName, onRegistered, onBack }: Props) {
+export default function UserRegisterScreen({ worldId, worldName, onRegistered, onBack }: Props) {
   const [name, setName] = useState("");
   const [motto, setMotto] = useState("");
 
@@ -59,7 +60,7 @@ export default function UserRegisterScreen({ worldName, onRegistered, onBack }: 
             onClick={() => {
               const n = name.trim();
               if (!n) return;
-              const u = appendRegisteredUser(n, motto.trim() || undefined);
+              const u = appendRegisteredUser(worldId, n, motto.trim() || undefined);
               onRegistered(u);
             }}
           >
